@@ -4,7 +4,8 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signInWithPopup, 
-  GoogleAuthProvider 
+  GoogleAuthProvider,
+  signInAnonymously
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { User, Lock, Mail, AlertCircle, Chrome } from 'lucide-react';
@@ -26,10 +27,11 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
       // Check if user exists in Firestore, if not create
       const userDoc = await getDoc(doc(db, 'users', result.user.uid));
       if (!userDoc.exists()) {
+        const role = result.user.email === 'wiwikismiati61@guru.smp.belajar.id' ? 'admin' : 'user';
         await setDoc(doc(db, 'users', result.user.uid), {
           uid: result.user.uid,
           email: result.user.email,
-          role: 'user',
+          role: role,
           createdAt: serverTimestamp()
         });
       }
@@ -47,13 +49,26 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
     setError('');
     setLoading(true);
 
+    // Master Login Bypass for Admin
+    if (email === 'wiwikismiati61@guru.smp.belajar.id' && password === 'Smpn7pas') {
+      try {
+        await signInAnonymously(auth);
+        localStorage.setItem('master_login', 'true');
+        onLogin();
+        return;
+      } catch (err) {
+        console.error("Master login failed, falling back:", err);
+      }
+    }
+
     try {
       if (isRegister) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const role = email === 'wiwikismiati61@guru.smp.belajar.id' ? 'admin' : 'user';
         await setDoc(doc(db, 'users', userCredential.user.uid), {
           uid: userCredential.user.uid,
           email: userCredential.user.email,
-          role: 'user',
+          role: role,
           createdAt: serverTimestamp()
         });
       } else {

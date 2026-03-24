@@ -37,6 +37,16 @@
         "status": { "type": "string", "enum": ["pending", "processed", "resolved"] }
       },
       "required": ["userId", "parentName", "phone", "relationship", "address", "studentClass", "studentName", "complaintType", "description", "incidentDate", "incidentTime", "incidentLocation", "expectation", "declaration", "createdAt", "status"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Student data for selection in complaint form",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "class": { "type": "string" }
+      },
+      "required": ["name", "class"]
     }
   },
   "firestore": {
@@ -47,6 +57,10 @@
     "/complaints/{complaintId}": {
       "schema": { "$ref": "#/entities/Complaint" },
       "description": "Stores complaints"
+    },
+    "/students/{studentId}": {
+      "schema": { "$ref": "#/entities/Student" },
+      "description": "Stores student data"
     }
   }
 }

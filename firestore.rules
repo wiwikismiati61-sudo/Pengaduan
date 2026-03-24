@@ -35,6 +35,12 @@ service cloud.firestore {
     //   - createdAt: timestamp (required)
     //   - status: string (required, 'pending', 'processed', 'resolved')
     //
+    // Collection: students
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required)
+    //   - class: string (required)
+    //
     // ===============================================================
 
     // Helper Functions
@@ -48,6 +54,8 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && (
+        request.auth.uid == "uOVVtO1II2YJu0W37VqwZbTs5K42" ||
+        request.auth.uid == "master-admin-uid-123" ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
         (request.auth.token.email == "wiwikismiati61@guru.smp.belajar.id" && request.auth.token.email_verified == true)
@@ -82,6 +90,11 @@ service cloud.firestore {
              data.declaration == true &&
              data.createdAt is timestamp &&
              data.status in ['pending', 'processed', 'resolved'];
+    }
+
+    match /students/{studentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     match /users/{userId} {

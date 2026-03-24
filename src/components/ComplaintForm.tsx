@@ -1,7 +1,58 @@
-import React, { useState } from 'react';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { Send, CheckCircle, AlertCircle } from 'lucide-react';
+import { Send, CheckCircle, AlertCircle, Search } from 'lucide-react';
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 const COMPLAINT_TYPES = [
   'Bullying/Perundungan',
@@ -13,10 +64,19 @@ const COMPLAINT_TYPES = [
   'Lainnya'
 ];
 
+interface Student {
+  id: string;
+  name: string;
+  class: string;
+}
+
 export default function ComplaintForm({ onSuccess }: { onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [classes, setClasses] = useState<string[]>([]);
+  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
 
   const [formData, setFormData] = useState({
     parentName: '',
@@ -36,6 +96,40 @@ export default function ComplaintForm({ onSuccess }: { onSuccess: () => void }) 
     expectation: '',
     declaration: false
   });
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      const path = 'students';
+      try {
+        const snapshot = await getDocs(collection(db, path));
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
+        setStudents(data);
+        
+        // Extract unique classes
+        const uniqueClasses = Array.from(new Set(data.map(s => s.class))).sort();
+        setClasses(uniqueClasses);
+      } catch (err) {
+        console.error("Error fetching students:", err);
+        try {
+          handleFirestoreError(err, OperationType.GET, path);
+        } catch (e: any) {
+          setError('Gagal mengambil data siswa. Pastikan Anda sudah login.');
+        }
+      }
+    };
+    fetchStudents();
+  }, []);
+
+  useEffect(() => {
+    if (formData.studentClass) {
+      const filtered = students.filter(s => s.class === formData.studentClass).sort((a, b) => a.name.localeCompare(b.name));
+      setFilteredStudents(filtered);
+      // Reset student name if class changes
+      setFormData(prev => ({ ...prev, studentName: '' }));
+    } else {
+      setFilteredStudents([]);
+    }
+  }, [formData.studentClass, students]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -62,8 +156,9 @@ export default function ComplaintForm({ onSuccess }: { onSuccess: () => void }) 
 
     setLoading(true);
 
+    const path = 'complaints';
     try {
-      await addDoc(collection(db, 'complaints'), {
+      await addDoc(collection(db, path), {
         userId: auth.currentUser?.uid,
         parentName: formData.parentName,
         phone: formData.phone,
@@ -92,7 +187,11 @@ export default function ComplaintForm({ onSuccess }: { onSuccess: () => void }) 
       
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Terjadi kesalahan saat mengirim pengaduan.');
+      try {
+        handleFirestoreError(err, OperationType.WRITE, path);
+      } catch (e: any) {
+        setError(err.message || 'Terjadi kesalahan saat mengirim pengaduan.');
+      }
     } finally {
       setLoading(false);
     }
@@ -163,12 +262,36 @@ export default function ComplaintForm({ onSuccess }: { onSuccess: () => void }) 
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nama Siswa *</label>
-              <input type="text" required name="studentName" value={formData.studentName} onChange={handleChange} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all bg-gray-50 focus:bg-white" placeholder="Nama Lengkap Siswa" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pilih Kelas *</label>
+              <select 
+                required 
+                name="studentClass" 
+                value={formData.studentClass} 
+                onChange={handleChange} 
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all bg-gray-50 focus:bg-white"
+              >
+                <option value="">Pilih Kelas</option>
+                {classes.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Kelas *</label>
-              <input type="text" required name="studentClass" value={formData.studentClass} onChange={handleChange} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all bg-gray-50 focus:bg-white" placeholder="Contoh: VII-A" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pilih Nama Siswa *</label>
+              <select 
+                required 
+                name="studentName" 
+                value={formData.studentName} 
+                onChange={handleChange} 
+                disabled={!formData.studentClass}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all bg-gray-50 focus:bg-white disabled:opacity-50"
+              >
+                <option value="">Pilih Nama Siswa</option>
+                {filteredStudents.map(s => (
+                  <option key={s.id} value={s.name}>{s.name}</option>
+                ))}
+              </select>
+              {!formData.studentClass && <p className="text-xs text-gray-400 mt-1 italic">Pilih kelas terlebih dahulu</p>}
             </div>
           </div>
         </div>

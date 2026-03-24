@@ -1,20 +1,54 @@
 import React, { useState, useEffect } from 'react';
-import { auth } from './firebase';
+import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import ComplaintForm from './components/ComplaintForm';
-import { LayoutDashboard, FileEdit, LogOut, Menu, X } from 'lucide-react';
+import AdminStudentUpload from './components/AdminStudentUpload';
+import { LayoutDashboard, FileEdit, LogOut, Menu, X, Users } from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string>('user');
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'form'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'form' | 'admin'>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      const isMasterLogin = localStorage.getItem('master_login') === 'true';
+      
+      if (isMasterLogin && currentUser && currentUser.isAnonymous) {
+        setUser(currentUser);
+        setUserRole('admin');
+        setLoading(false);
+        return;
+      }
+
+      if (currentUser) {
+        setUser(currentUser);
+        
+        // Force admin role for the specific admin email
+        if (currentUser.email === 'wiwikismiati61@guru.smp.belajar.id') {
+          setUserRole('admin');
+          setLoading(false);
+          return;
+        }
+
+        // Fetch user role for others
+        try {
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            setUserRole(userDoc.data().role || 'user');
+          }
+        } catch (err) {
+          console.error("Error fetching user role:", err);
+        }
+      } else {
+        setUser(null);
+        setUserRole('user');
+      }
       setLoading(false);
     });
     return () => unsubscribe();
@@ -22,6 +56,7 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
+      localStorage.removeItem('master_login');
       await signOut(auth);
     } catch (error) {
       console.error("Error logging out:", error);
@@ -87,12 +122,27 @@ export default function App() {
             <FileEdit className={`w-5 h-5 ${activeTab === 'form' ? 'text-purple-600' : 'text-gray-400'}`} />
             Buat Pengaduan
           </button>
+
+          {userRole === 'admin' && (
+            <button
+              onClick={() => { setActiveTab('admin'); setIsMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                activeTab === 'admin' 
+                  ? 'bg-orange-50 text-orange-700 font-semibold shadow-sm border border-orange-100' 
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              <Users className={`w-5 h-5 ${activeTab === 'admin' ? 'text-orange-600' : 'text-gray-400'}`} />
+              Data Siswa (Admin)
+            </button>
+          )}
         </div>
 
         <div className="p-4 border-t border-gray-100">
           <div className="px-4 py-3 mb-2">
             <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Login sebagai</p>
             <p className="text-sm font-medium text-gray-800 truncate">{user.email}</p>
+            <p className="text-[10px] font-bold text-indigo-500 uppercase">{userRole}</p>
           </div>
           <button
             onClick={handleLogout}
@@ -109,19 +159,23 @@ export default function App() {
         <div className="max-w-6xl mx-auto">
           <header className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-              {activeTab === 'dashboard' ? 'Dashboard Laporan' : 'Formulir Pengaduan'}
+              {activeTab === 'dashboard' ? 'Dashboard Laporan' : activeTab === 'form' ? 'Formulir Pengaduan' : 'Manajemen Data Siswa'}
             </h1>
             <p className="text-gray-500 mt-2">
               {activeTab === 'dashboard' 
                 ? 'Pantau status dan statistik pengaduan Anda di sini.' 
-                : 'Sampaikan keluhan atau masukan Anda kepada pihak sekolah.'}
+                : activeTab === 'form'
+                ? 'Sampaikan keluhan atau masukan Anda kepada pihak sekolah.'
+                : 'Unggah data siswa dari file Excel untuk memudahkan pengisian formulir.'}
             </p>
           </header>
 
           {activeTab === 'dashboard' ? (
             <Dashboard />
-          ) : (
+          ) : activeTab === 'form' ? (
             <ComplaintForm onSuccess={() => setActiveTab('dashboard')} />
+          ) : (
+            <AdminStudentUpload />
           )}
         </div>
       </main>
