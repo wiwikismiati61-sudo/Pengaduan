@@ -1,0 +1,52 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile for authentication",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Complaint": {
+      "title": "Complaint",
+      "description": "A complaint submitted by a parent or guardian",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "parentName": { "type": "string" },
+        "phone": { "type": "string" },
+        "relationship": { "type": "string", "enum": ["Ayah", "Ibu", "Wali"] },
+        "address": { "type": "string" },
+        "studentClass": { "type": "string" },
+        "studentName": { "type": "string" },
+        "complaintType": { "type": "string", "enum": ["Bullying/Perundungan", "Disiplin", "Akademik", "Sosial/Pergaulan", "Pelanggaran Tatatertib", "Masalah dengan Guru", "Lainnya"] },
+        "complaintTypeOther": { "type": "string" },
+        "description": { "type": "string" },
+        "incidentDate": { "type": "string" },
+        "incidentTime": { "type": "string" },
+        "incidentLocation": { "type": "string" },
+        "evidence": { "type": "string" },
+        "expectation": { "type": "string" },
+        "declaration": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "processed", "resolved"] }
+      },
+      "required": ["userId", "parentName", "phone", "relationship", "address", "studentClass", "studentName", "complaintType", "description", "incidentDate", "incidentTime", "incidentLocation", "expectation", "declaration", "createdAt", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles"
+    },
+    "/complaints/{complaintId}": {
+      "schema": { "$ref": "#/entities/Complaint" },
+      "description": "Stores complaints"
+    }
+  }
+}

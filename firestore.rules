@@ -1,0 +1,110 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: uid
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - role: string (required, 'admin' or 'user')
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: complaints
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required)
+    //   - parentName: string (required)
+    //   - phone: string (required)
+    //   - relationship: string (required, 'Ayah', 'Ibu', 'Wali')
+    //   - address: string (required)
+    //   - studentClass: string (required)
+    //   - studentName: string (required)
+    //   - complaintType: string (required)
+    //   - complaintTypeOther: string (optional)
+    //   - description: string (required, max 500 chars)
+    //   - incidentDate: string (required)
+    //   - incidentTime: string (required)
+    //   - incidentLocation: string (required)
+    //   - evidence: string (optional)
+    //   - expectation: string (required)
+    //   - declaration: boolean (required)
+    //   - createdAt: timestamp (required)
+    //   - status: string (required, 'pending', 'processed', 'resolved')
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+        (request.auth.token.email == "wiwikismiati61@guru.smp.belajar.id" && request.auth.token.email_verified == true)
+      );
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
+             data.email is string && data.email.size() > 0 && data.email.size() < 100 &&
+             data.role in ['admin', 'user'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidComplaint(data) {
+      return data.keys().hasAll(['userId', 'parentName', 'phone', 'relationship', 'address', 'studentClass', 'studentName', 'complaintType', 'description', 'incidentDate', 'incidentTime', 'incidentLocation', 'expectation', 'declaration', 'createdAt', 'status']) &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
+             data.parentName is string && data.parentName.size() > 0 && data.parentName.size() < 100 &&
+             data.phone is string && data.phone.size() > 0 && data.phone.size() < 20 &&
+             data.relationship in ['Ayah', 'Ibu', 'Wali'] &&
+             data.address is string && data.address.size() > 0 && data.address.size() < 200 &&
+             data.studentClass is string && data.studentClass.size() > 0 && data.studentClass.size() < 50 &&
+             data.studentName is string && data.studentName.size() > 0 && data.studentName.size() < 100 &&
+             data.complaintType in ['Bullying/Perundungan', 'Disiplin', 'Akademik', 'Sosial/Pergaulan', 'Pelanggaran Tatatertib', 'Masalah dengan Guru', 'Lainnya'] &&
+             (!('complaintTypeOther' in data) || (data.complaintTypeOther is string && data.complaintTypeOther.size() <= 100)) &&
+             data.description is string && data.description.size() > 0 && data.description.size() <= 500 &&
+             data.incidentDate is string && data.incidentDate.size() > 0 && data.incidentDate.size() < 50 &&
+             data.incidentTime is string && data.incidentTime.size() > 0 && data.incidentTime.size() < 50 &&
+             data.incidentLocation is string && data.incidentLocation.size() > 0 && data.incidentLocation.size() < 100 &&
+             (!('evidence' in data) || (data.evidence is string && data.evidence.size() <= 500)) &&
+             data.expectation is string && data.expectation.size() > 0 && data.expectation.size() <= 500 &&
+             data.declaration == true &&
+             data.createdAt is timestamp &&
+             data.status in ['pending', 'processed', 'resolved'];
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (
+        (isOwner(userId) && request.resource.data.role == 'user' && request.resource.data.uid == request.auth.uid) ||
+        isAdmin()
+      );
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (
+        (isOwner(userId) && request.resource.data.role == resource.data.role && request.resource.data.uid == resource.data.uid && request.resource.data.createdAt == resource.data.createdAt) ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /complaints/{complaintId} {
+      allow read: if (isAuthenticated() && request.auth.uid == resource.data.userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidComplaint(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && isValidComplaint(request.resource.data) && (
+        (request.auth.uid == resource.data.userId && request.resource.data.userId == resource.data.userId && request.resource.data.createdAt == resource.data.createdAt) ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+  }
+}
