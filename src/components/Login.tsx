@@ -30,7 +30,17 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
       }
       onLogin();
     } catch (err: any) {
-      setError(err.message || 'Terjadi kesalahan saat login/register.');
+      let errorMessage = err.message || 'Terjadi kesalahan saat login/register.';
+      if (err.code === 'auth/invalid-credential') {
+        errorMessage = 'Email atau password salah, atau akun belum terdaftar. Silakan daftar terlebih dahulu jika belum memiliki akun.';
+      } else if (err.code === 'auth/operation-not-allowed') {
+        errorMessage = 'Metode login Email/Password belum diaktifkan. Silakan aktifkan di Firebase Console > Authentication > Sign-in method.';
+      } else if (err.code === 'auth/email-already-in-use') {
+        errorMessage = 'Email sudah digunakan oleh akun lain. Silakan langsung login.';
+      } else if (err.code === 'auth/weak-password') {
+        errorMessage = 'Password terlalu lemah. Gunakan minimal 6 karakter.';
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
