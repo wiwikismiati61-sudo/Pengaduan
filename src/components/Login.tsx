@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import { auth, db } from '../firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { User, Lock, Mail, AlertCircle } from 'lucide-react';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signInWithPopup, 
+  GoogleAuthProvider 
+} from 'firebase/auth';
+import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { User, Lock, Mail, AlertCircle, Chrome } from 'lucide-react';
 
 export default function Login({ onLogin }: { onLogin: () => void }) {
   const [isRegister, setIsRegister] = useState(false);
@@ -10,6 +15,32 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      
+      // Check if user exists in Firestore, if not create
+      const userDoc = await getDoc(doc(db, 'users', result.user.uid));
+      if (!userDoc.exists()) {
+        await setDoc(doc(db, 'users', result.user.uid), {
+          uid: result.user.uid,
+          email: result.user.email,
+          role: 'user',
+          createdAt: serverTimestamp()
+        });
+      }
+      onLogin();
+    } catch (err: any) {
+      console.error(err);
+      setError('Gagal login dengan Google. Pastikan pop-up diizinkan.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,13 +63,15 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
     } catch (err: any) {
       let errorMessage = err.message || 'Terjadi kesalahan saat login/register.';
       if (err.code === 'auth/invalid-credential') {
-        errorMessage = 'Email atau password salah, atau akun belum terdaftar. Silakan daftar terlebih dahulu jika belum memiliki akun.';
+        errorMessage = 'Email atau password salah. Jika Anda belum pernah mendaftar, silakan klik "Daftar Akun Baru" di bawah.';
       } else if (err.code === 'auth/operation-not-allowed') {
-        errorMessage = 'Metode login Email/Password belum diaktifkan. Silakan aktifkan di Firebase Console > Authentication > Sign-in method.';
+        errorMessage = 'Metode login Email/Password belum diaktifkan di Firebase Console. Silakan gunakan Login Google sebagai alternatif.';
       } else if (err.code === 'auth/email-already-in-use') {
-        errorMessage = 'Email sudah digunakan oleh akun lain. Silakan langsung login.';
+        errorMessage = 'Email sudah terdaftar. Silakan langsung login.';
       } else if (err.code === 'auth/weak-password') {
-        errorMessage = 'Password terlalu lemah. Gunakan minimal 6 karakter.';
+        errorMessage = 'Password minimal 6 karakter.';
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Login dibatalkan (pop-up ditutup).';
       }
       setError(errorMessage);
     } finally {
@@ -62,8 +95,8 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg flex items-center gap-2 text-sm">
-            <AlertCircle className="w-4 h-4" />
+          <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl flex items-start gap-3 text-sm border border-red-100 animate-in slide-in-from-top-2">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
@@ -80,7 +113,7 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-gray-50 focus:bg-white"
                 placeholder="nama@email.com"
               />
             </div>
@@ -97,7 +130,7 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all bg-gray-50 focus:bg-white"
                 placeholder="••••••••"
               />
             </div>
@@ -106,18 +139,36 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50"
+            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all disabled:opacity-50"
           >
-            {loading ? 'Memproses...' : (isRegister ? 'Daftar' : 'Masuk')}
+            {loading ? 'Memproses...' : (isRegister ? 'BUAT AKUN SEKARANG' : 'MASUK KE SISTEM')}
           </button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="relative my-8">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">Atau gunakan</span>
+          </div>
+        </div>
+
+        <button
+          onClick={handleGoogleLogin}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all disabled:opacity-50"
+        >
+          <Chrome className="w-5 h-5 text-blue-500" />
+          Masuk dengan Google
+        </button>
+
+        <div className="mt-8 text-center pt-6 border-t border-gray-100">
           <button
-            onClick={() => setIsRegister(!isRegister)}
-            className="text-sm text-indigo-600 hover:text-indigo-500 font-medium"
+            onClick={() => { setIsRegister(!isRegister); setError(''); }}
+            className="text-sm text-indigo-600 hover:text-indigo-500 font-bold"
           >
-            {isRegister ? 'Sudah punya akun? Login di sini' : 'Belum punya akun? Daftar di sini'}
+            {isRegister ? 'Sudah punya akun? Login di sini' : 'Belum punya akun? DAFTAR AKUN BARU'}
           </button>
         </div>
       </div>
