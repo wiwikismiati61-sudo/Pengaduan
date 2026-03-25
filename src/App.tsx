@@ -13,7 +13,7 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<string>('user');
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'form' | 'reports' | 'admin'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'form' | 'reports' | 'admin'>('form');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -76,11 +76,11 @@ export default function App() {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard userRole={userRole} />;
       case 'form':
         return <ComplaintForm onSuccess={() => setActiveTab('dashboard')} />;
       case 'reports':
-        return <Reports isAdmin={userRole === 'admin'} />;
+        return user ? <Reports isAdmin={userRole === 'admin'} userRole={userRole} /> : <Login onLogin={() => setActiveTab('reports')} />;
       case 'admin':
         return user && userRole === 'admin' ? <AdminStudentUpload /> : <Login onLogin={() => setActiveTab('admin')} />;
       default:
@@ -112,41 +112,47 @@ export default function App() {
         </div>
         
         <div className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-          <button
-            onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-              activeTab === 'dashboard' 
-                ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm border border-indigo-100' 
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-          >
-            <LayoutDashboard className={`w-5 h-5 ${activeTab === 'dashboard' ? 'text-indigo-600' : 'text-gray-400'}`} />
-            Dashboard
-          </button>
+          {(userRole === 'admin' || (user && userRole === 'user')) && (
+            <button
+              onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                activeTab === 'dashboard' 
+                  ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm border border-indigo-100' 
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              <LayoutDashboard className={`w-5 h-5 ${activeTab === 'dashboard' ? 'text-indigo-600' : 'text-gray-400'}`} />
+              Dashboard
+            </button>
+          )}
           
-          <button
-            onClick={() => { setActiveTab('form'); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-              activeTab === 'form' 
-                ? 'bg-purple-50 text-purple-700 font-semibold shadow-sm border border-purple-100' 
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-          >
-            <FileEdit className={`w-5 h-5 ${activeTab === 'form' ? 'text-purple-600' : 'text-gray-400'}`} />
-            Buat Pengaduan
-          </button>
+          {(userRole === 'admin' || !user) && (
+            <button
+              onClick={() => { setActiveTab('form'); setIsMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                activeTab === 'form' 
+                  ? 'bg-purple-50 text-purple-700 font-semibold shadow-sm border border-purple-100' 
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              <FileEdit className={`w-5 h-5 ${activeTab === 'form' ? 'text-purple-600' : 'text-gray-400'}`} />
+              Buat Pengaduan
+            </button>
+          )}
 
-          <button
-            onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-              activeTab === 'reports' 
-                ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm border border-blue-100' 
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-          >
-            <FileText className={`w-5 h-5 ${activeTab === 'reports' ? 'text-blue-600' : 'text-gray-400'}`} />
-            Laporan Pengaduan
-          </button>
+          {(userRole === 'admin' || (user && userRole === 'user')) && (
+            <button
+              onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                activeTab === 'reports' 
+                  ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm border border-blue-100' 
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              <FileText className={`w-5 h-5 ${activeTab === 'reports' ? 'text-blue-600' : 'text-gray-400'}`} />
+              Laporan Pengaduan
+            </button>
+          )}
 
           {userRole === 'admin' && (
             <button
@@ -169,7 +175,7 @@ export default function App() {
               <div className="px-4 py-3 mb-2">
                 <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Login sebagai</p>
                 <p className="text-sm font-medium text-gray-800 truncate">{user.email || 'Admin Bypass'}</p>
-                <p className="text-[10px] font-bold text-indigo-500 uppercase">{userRole}</p>
+                <p className="text-[10px] font-bold text-indigo-500 uppercase">{userRole === 'admin' ? 'Admin' : 'Guru'}</p>
               </div>
               <button
                 onClick={handleLogout}
@@ -185,7 +191,7 @@ export default function App() {
               className="w-full flex items-center gap-3 px-4 py-3 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors font-medium"
             >
               <Users className="w-5 h-5" />
-              Login Admin
+              Login Guru / Admin
             </button>
           )}
         </div>

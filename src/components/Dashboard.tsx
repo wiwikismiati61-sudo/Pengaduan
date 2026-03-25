@@ -6,7 +6,7 @@ import { FileText, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#ffc658', '#ef4444'];
 
-export default function Dashboard() {
+export default function Dashboard({ userRole }: { userRole?: string }) {
   const [complaints, setComplaints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -15,14 +15,12 @@ export default function Dashboard() {
     const isMasterLogin = localStorage.getItem('master_login') === 'true';
     
     let q;
-    if (!auth.currentUser || isAdmin || isMasterLogin) {
+    // Show all data if Admin or Guru (userRole === 'user')
+    if (isAdmin || isMasterLogin || (auth.currentUser && userRole === 'user')) {
       q = query(collection(db, 'complaints'));
     } else {
-      // Even for regular users, let's show global stats on dashboard 
-      // but maybe they want to see their own? 
-      // The user request "Tampilkan data pengaduan sebelumnya walaupun tidak login" 
-      // suggests they want to see the overall progress.
-      q = query(collection(db, 'complaints'));
+      // If Public (Walimurid), they shouldn't see this, but just in case, show only their own (if any)
+      q = query(collection(db, 'complaints'), where('userId', '==', auth.currentUser?.uid || ''));
     }
     
     const unsubscribe = onSnapshot(q, (snapshot) => {

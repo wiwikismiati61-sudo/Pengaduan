@@ -50,9 +50,10 @@ interface Complaint {
 
 interface ReportsProps {
   isAdmin: boolean;
+  userRole?: string;
 }
 
-const Reports: React.FC<ReportsProps> = ({ isAdmin }) => {
+const Reports: React.FC<ReportsProps> = ({ isAdmin, userRole }) => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,11 +68,17 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin }) => {
     const path = 'complaints';
     let q;
     
-    // If Admin or not logged in, show all. 
-    // If logged in as user, show all but they can only edit their own.
-    // The user request "Tampilkan data pengaduan sebelumnya walaupun tidak login" 
-    // implies they want to see the public log.
-    q = query(collection(db, path), orderBy('createdAt', 'desc'));
+    // Admin or Guru (userRole === 'user') sees all
+    if (isAdmin || userRole === 'user') {
+      q = query(collection(db, path), orderBy('createdAt', 'desc'));
+    } else {
+      // This case shouldn't be reached if login is required, but just in case
+      q = query(
+        collection(db, path), 
+        where('userId', '==', auth.currentUser?.uid || ''),
+        orderBy('createdAt', 'desc')
+      );
+    }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
@@ -303,28 +310,6 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin }) => {
                             </button>
                           </>
                         )}
-                        {!isAdmin && auth.currentUser && c.userId === auth.currentUser.uid && c.status === 'pending' && (
-                          <>
-                            <button 
-                              onClick={() => {
-                                setEditingComplaint(c);
-                                setIsEditModalOpen(true);
-                              }}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Edit"
-                            >
-                              <Edit2 size={18} />
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(c.id)}
-                              disabled={isDeleting === c.id}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                              title="Hapus"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -441,7 +426,7 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin }) => {
                     {getStatusBadge(viewingComplaint.status)}
                     <span className="text-xs text-gray-400 font-medium">Dibuat pada: {viewingComplaint.createdAt?.toDate ? viewingComplaint.createdAt.toDate().toLocaleString('id-ID') : '-'}</span>
                   </div>
-                  {isAdmin && (
+                  {(isAdmin || userRole === 'user') && (
                     <div className="flex gap-2">
                       <button onClick={() => handleUpdateStatus(viewingComplaint.id, 'pending')} className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${viewingComplaint.status === 'pending' ? 'bg-yellow-500 text-white' : 'bg-white text-yellow-600 border border-yellow-200 hover:bg-yellow-50'}`}>Menunggu</button>
                       <button onClick={() => handleUpdateStatus(viewingComplaint.id, 'processed')} className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${viewingComplaint.status === 'processed' ? 'bg-blue-500 text-white' : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'}`}>Diproses</button>
