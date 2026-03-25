@@ -11,8 +11,15 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch all complaints for global stats
-    const q = query(collection(db, 'complaints'));
+    const isAdmin = auth.currentUser?.email === 'wiwikismiati61@guru.smp.belajar.id';
+    const isMasterLogin = localStorage.getItem('master_login') === 'true';
+    
+    let q;
+    if (isAdmin || isMasterLogin) {
+      q = query(collection(db, 'complaints'));
+    } else {
+      q = query(collection(db, 'complaints'), where('userId', '==', auth.currentUser?.uid || ''));
+    }
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -155,12 +162,12 @@ export default function Dashboard() {
         <div className="p-6 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-800">Riwayat Pengaduan Terbaru</h3>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 text-gray-500 text-sm">
                 <th className="p-4 font-medium">Tanggal</th>
-                <th className="p-4 font-medium">Siswa</th>
+                <th className="p-4 font-medium">Kelas</th>
                 <th className="p-4 font-medium">Jenis</th>
                 <th className="p-4 font-medium">Status</th>
               </tr>
@@ -170,7 +177,7 @@ export default function Dashboard() {
                 complaints.slice(0, 5).map((c) => (
                   <tr key={c.id} className="hover:bg-gray-50 transition-colors">
                     <td className="p-4 text-sm text-gray-700">{c.incidentDate}</td>
-                    <td className="p-4 text-sm text-gray-700 font-medium">{c.studentName} <span className="text-gray-400 text-xs font-normal">({c.studentClass})</span></td>
+                    <td className="p-4 text-sm text-gray-700 font-medium">{c.studentClass}</td>
                     <td className="p-4 text-sm text-gray-700">
                       <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs font-medium">
                         {c.complaintType}

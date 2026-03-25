@@ -49,10 +49,6 @@ export default function App() {
       } else {
         setUser(null);
         setUserRole('user');
-        // If user is not logged in and on a restricted tab, move to dashboard
-        if (activeTab === 'reports' || activeTab === 'admin') {
-          setActiveTab('dashboard');
-        }
       }
       setLoading(false);
     });

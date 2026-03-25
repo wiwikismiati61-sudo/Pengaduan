@@ -59,6 +59,8 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin }) => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [editingComplaint, setEditingComplaint] = useState<Complaint | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [viewingComplaint, setViewingComplaint] = useState<Complaint | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   useEffect(() => {
@@ -238,7 +240,7 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin }) => {
 
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 border-bottom border-gray-100">
@@ -273,6 +275,16 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin }) => {
                     </td>
                     <td className="px-6 py-4 print:hidden">
                       <div className="flex gap-2">
+                        <button 
+                          onClick={() => {
+                            setViewingComplaint(c);
+                            setIsDetailModalOpen(true);
+                          }}
+                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          title="Detail"
+                        >
+                          <FileText size={18} />
+                        </button>
                         {isAdmin && (
                           <>
                             <button 
@@ -296,16 +308,26 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin }) => {
                           </>
                         )}
                         {!isAdmin && c.status === 'pending' && (
-                          <button 
-                            onClick={() => {
-                              setEditingComplaint(c);
-                              setIsEditModalOpen(true);
-                            }}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 size={18} />
-                          </button>
+                          <>
+                            <button 
+                              onClick={() => {
+                                setEditingComplaint(c);
+                                setIsEditModalOpen(true);
+                              }}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(c.id)}
+                              disabled={isDeleting === c.id}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                              title="Hapus"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -325,6 +347,128 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin }) => {
           </table>
         </div>
       </div>
+
+      {/* Detail Modal */}
+      {isDetailModalOpen && viewingComplaint && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+              <h3 className="text-xl font-bold text-gray-800">Detail Pengaduan</h3>
+              <button 
+                onClick={() => {
+                  setIsDetailModalOpen(false);
+                  setViewingComplaint(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-8 space-y-8">
+              {/* Section 1: Data Pelapor */}
+              <div className="space-y-4">
+                <h4 className="text-md font-bold text-indigo-600 border-b border-indigo-50 pb-2">1. Data Pelapor</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Nama Orang Tua / Wali</p>
+                    <p className="text-sm font-semibold text-gray-800">{viewingComplaint.parentName}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Nomor HP / WA</p>
+                    <p className="text-sm font-semibold text-gray-800">{viewingComplaint.phone}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Hubungan dengan Siswa</p>
+                    <p className="text-sm font-semibold text-gray-800">{viewingComplaint.relationship}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Alamat Lengkap</p>
+                    <p className="text-sm font-semibold text-gray-800">{viewingComplaint.address}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Data Siswa */}
+              <div className="space-y-4">
+                <h4 className="text-md font-bold text-purple-600 border-b border-purple-50 pb-2">2. Data Siswa</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Nama Siswa</p>
+                    <p className="text-sm font-semibold text-gray-800">{viewingComplaint.studentName}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Kelas</p>
+                    <p className="text-sm font-semibold text-gray-800">{viewingComplaint.studentClass}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Detail Pengaduan */}
+              <div className="space-y-4">
+                <h4 className="text-md font-bold text-pink-600 border-b border-pink-50 pb-2">3. Detail Pengaduan</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Jenis Pengaduan</p>
+                    <p className="text-sm font-semibold text-gray-800">
+                      {viewingComplaint.complaintType}
+                      {viewingComplaint.complaintType === 'Lainnya' && viewingComplaint.complaintTypeOther && ` (${viewingComplaint.complaintTypeOther})`}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Waktu Kejadian</p>
+                    <p className="text-sm font-semibold text-gray-800">{viewingComplaint.incidentDate} pukul {viewingComplaint.incidentTime}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Tempat Kejadian</p>
+                    <p className="text-sm font-semibold text-gray-800">{viewingComplaint.incidentLocation}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Uraian Permasalahan / Kronologi</p>
+                    <p className="text-sm font-semibold text-gray-800 leading-relaxed bg-gray-50 p-4 rounded-xl border border-gray-100">{viewingComplaint.description}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Bukti Pendukung</p>
+                    <p className="text-sm font-semibold text-gray-800">{viewingComplaint.evidence || '-'}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Harapan Orang Tua</p>
+                    <p className="text-sm font-semibold text-gray-800 leading-relaxed bg-indigo-50 p-4 rounded-xl border border-indigo-100">{viewingComplaint.expectation}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Status */}
+              <div className="space-y-4">
+                <h4 className="text-md font-bold text-gray-600 border-b border-gray-50 pb-2">4. Status Pengaduan</h4>
+                <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    {getStatusBadge(viewingComplaint.status)}
+                    <span className="text-xs text-gray-400 font-medium">Dibuat pada: {viewingComplaint.createdAt?.toDate ? viewingComplaint.createdAt.toDate().toLocaleString('id-ID') : '-'}</span>
+                  </div>
+                  {isAdmin && (
+                    <div className="flex gap-2">
+                      <button onClick={() => handleUpdateStatus(viewingComplaint.id, 'pending')} className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${viewingComplaint.status === 'pending' ? 'bg-yellow-500 text-white' : 'bg-white text-yellow-600 border border-yellow-200 hover:bg-yellow-50'}`}>Menunggu</button>
+                      <button onClick={() => handleUpdateStatus(viewingComplaint.id, 'processed')} className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${viewingComplaint.status === 'processed' ? 'bg-blue-500 text-white' : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'}`}>Diproses</button>
+                      <button onClick={() => handleUpdateStatus(viewingComplaint.id, 'resolved')} className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${viewingComplaint.status === 'resolved' ? 'bg-green-500 text-white' : 'bg-white text-green-600 border border-green-200 hover:bg-green-50'}`}>Selesai</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white">
+              <button 
+                onClick={() => {
+                  setIsDetailModalOpen(false);
+                  setViewingComplaint(null);
+                }}
+                className="px-8 py-2.5 bg-gray-800 text-white rounded-xl hover:bg-gray-900 transition-colors font-bold"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {isEditModalOpen && editingComplaint && (
@@ -415,6 +559,20 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin }) => {
                 ></textarea>
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                {(isAdmin || (!isAdmin && editingComplaint.status === 'pending')) && (
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      handleDelete(editingComplaint.id);
+                      setIsEditModalOpen(false);
+                      setEditingComplaint(null);
+                    }}
+                    className="mr-auto px-6 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition-colors font-bold flex items-center gap-2"
+                  >
+                    <Trash2 size={18} />
+                    Hapus
+                  </button>
+                )}
                 <button 
                   type="button"
                   onClick={() => {

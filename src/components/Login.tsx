@@ -56,15 +56,28 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
         try {
           await signInWithEmailAndPassword(auth, email, password);
         } catch (signInErr: any) {
-          // If user doesn't exist, create it
+          // If sign in fails, it might be because the user doesn't exist
+          // or the password in Firebase is different from the bypass password.
           if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential') {
-            await createUserWithEmailAndPassword(auth, email, password);
-            await setDoc(doc(db, 'users', auth.currentUser!.uid), {
-              uid: auth.currentUser!.uid,
-              email: email,
-              role: 'admin',
-              createdAt: serverTimestamp()
-            });
+            try {
+              // Try to create the user if they don't exist
+              await createUserWithEmailAndPassword(auth, email, password);
+              await setDoc(doc(db, 'users', auth.currentUser!.uid), {
+                uid: auth.currentUser!.uid,
+                email: email,
+                role: 'admin',
+                createdAt: serverTimestamp()
+              });
+            } catch (createErr: any) {
+              // If creation fails with 'email-already-in-use', it means the account exists
+              // but the password provided doesn't match the one in Firebase.
+              if (createErr.code === 'auth/email-already-in-use') {
+                setError('Akun admin sudah terdaftar dengan password berbeda di sistem Firebase. Silakan gunakan password yang benar.');
+                setLoading(false);
+                return;
+              }
+              throw createErr;
+            }
           } else {
             throw signInErr;
           }
@@ -72,8 +85,11 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
         localStorage.setItem('master_login', 'true');
         onLogin();
         return;
-      } catch (err) {
-        console.error("Master login failed, falling back:", err);
+      } catch (err: any) {
+        console.error("Master login error:", err);
+        setError(err.message || "Gagal masuk sebagai admin.");
+        setLoading(false);
+        return;
       }
     }
 
