@@ -80,7 +80,7 @@ export default function App() {
       case 'form':
         return <ComplaintForm onSuccess={() => setActiveTab('dashboard')} />;
       case 'reports':
-        return user ? <Reports isAdmin={userRole === 'admin'} /> : <Login onLogin={() => setActiveTab('reports')} />;
+        return <Reports isAdmin={userRole === 'admin'} />;
       case 'admin':
         return user && userRole === 'admin' ? <AdminStudentUpload /> : <Login onLogin={() => setActiveTab('admin')} />;
       default:

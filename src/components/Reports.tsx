@@ -67,15 +67,11 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin }) => {
     const path = 'complaints';
     let q;
     
-    if (isAdmin) {
-      q = query(collection(db, path), orderBy('createdAt', 'desc'));
-    } else {
-      q = query(
-        collection(db, path), 
-        where('userId', '==', auth.currentUser?.uid || ''),
-        orderBy('createdAt', 'desc')
-      );
-    }
+    // If Admin or not logged in, show all. 
+    // If logged in as user, show all but they can only edit their own.
+    // The user request "Tampilkan data pengaduan sebelumnya walaupun tidak login" 
+    // implies they want to see the public log.
+    q = query(collection(db, path), orderBy('createdAt', 'desc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
@@ -307,7 +303,7 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin }) => {
                             </button>
                           </>
                         )}
-                        {!isAdmin && c.status === 'pending' && (
+                        {!isAdmin && auth.currentUser && c.userId === auth.currentUser.uid && c.status === 'pending' && (
                           <>
                             <button 
                               onClick={() => {
@@ -559,7 +555,7 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin }) => {
                 ></textarea>
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                {(isAdmin || (!isAdmin && editingComplaint.status === 'pending')) && (
+                {(isAdmin || (!isAdmin && auth.currentUser && editingComplaint.userId === auth.currentUser.uid && editingComplaint.status === 'pending')) && (
                   <button 
                     type="button"
                     onClick={() => {

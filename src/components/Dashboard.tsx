@@ -15,10 +15,14 @@ export default function Dashboard() {
     const isMasterLogin = localStorage.getItem('master_login') === 'true';
     
     let q;
-    if (isAdmin || isMasterLogin) {
+    if (!auth.currentUser || isAdmin || isMasterLogin) {
       q = query(collection(db, 'complaints'));
     } else {
-      q = query(collection(db, 'complaints'), where('userId', '==', auth.currentUser?.uid || ''));
+      // Even for regular users, let's show global stats on dashboard 
+      // but maybe they want to see their own? 
+      // The user request "Tampilkan data pengaduan sebelumnya walaupun tidak login" 
+      // suggests they want to see the overall progress.
+      q = query(collection(db, 'complaints'));
     }
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
