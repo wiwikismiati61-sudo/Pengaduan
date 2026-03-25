@@ -92,7 +92,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col md:flex-row">
       
       {/* Mobile Header */}
-      <div className="md:hidden bg-white border-b border-gray-200 p-4 flex justify-between items-center sticky top-0 z-50">
+      <div className="md:hidden bg-white border-b border-gray-200 p-4 flex justify-between items-center sticky top-0 z-40">
         <img src="https://iili.io/KDFk4fI.png" alt="Logo" className="h-10" />
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
           {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -102,13 +102,21 @@ export default function App() {
       {/* Sidebar */}
       <aside className={`
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} 
-        md:translate-x-0 fixed md:sticky top-0 left-0 z-40 w-64 h-screen bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out flex flex-col
+        md:translate-x-0 fixed md:sticky top-0 left-0 z-[60] w-64 h-screen bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out flex flex-col
       `}>
-        <div className="p-6 hidden md:block border-b border-gray-100">
-          <img src="https://iili.io/KDFk4fI.png" alt="Logo" className="h-14 mb-2" />
-          <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
-            Pengaduan Walimurid
-          </h1>
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center md:block">
+          <div>
+            <img src="https://iili.io/KDFk4fI.png" alt="Logo" className="h-14 mb-2" />
+            <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
+              Pengaduan Walimurid
+            </h1>
+          </div>
+          <button 
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="md:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+          >
+            <X className="w-6 h-6" />
+          </button>
         </div>
         
         <div className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
@@ -225,7 +233,7 @@ export default function App() {
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-gray-900/50 z-30 md:hidden"
+          className="fixed inset-0 bg-gray-900/50 z-50 md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}

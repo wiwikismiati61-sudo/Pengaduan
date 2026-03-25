@@ -433,7 +433,7 @@ export default function AdminStudentUpload() {
 
       {/* Invitation Modal */}
       {isInvitationModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:hidden">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-300">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-indigo-600 text-white">
               <h3 className="text-xl font-bold">Detail Undangan Orang Tua</h3>
