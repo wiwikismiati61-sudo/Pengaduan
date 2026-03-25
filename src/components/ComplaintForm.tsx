@@ -1,58 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, serverTimestamp, getDocs, query, orderBy } from 'firebase/firestore';
-import { db, auth } from '../firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { Send, CheckCircle, AlertCircle, Search } from 'lucide-react';
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
 
 const COMPLAINT_TYPES = [
   'Bullying/Perundungan',
@@ -113,7 +62,7 @@ export default function ComplaintForm({ onSuccess }: { onSuccess: () => void }) 
         try {
           handleFirestoreError(err, OperationType.GET, path);
         } catch (e: any) {
-          setError('Gagal mengambil data siswa. Pastikan Anda sudah login.');
+          setError('Gagal mengambil data siswa. Silakan coba lagi nanti.');
         }
       }
     };
@@ -159,7 +108,7 @@ export default function ComplaintForm({ onSuccess }: { onSuccess: () => void }) 
     const path = 'complaints';
     try {
       await addDoc(collection(db, path), {
-        userId: auth.currentUser?.uid,
+        userId: auth.currentUser?.uid || 'guest',
         parentName: formData.parentName,
         phone: formData.phone,
         relationship: formData.relationship,

@@ -58,7 +58,7 @@ service cloud.firestore {
         request.auth.uid == "master-admin-uid-123" ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-        (request.auth.token.email == "wiwikismiati61@guru.smp.belajar.id" && request.auth.token.email_verified == true)
+        (request.auth.token.email == "wiwikismiati61@guru.smp.belajar.id")
       );
     }
 
@@ -93,7 +93,7 @@ service cloud.firestore {
     }
 
     match /students/{studentId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -111,8 +111,8 @@ service cloud.firestore {
     }
 
     match /complaints/{complaintId} {
-      allow read: if (isAuthenticated() && request.auth.uid == resource.data.userId) || isAdmin();
-      allow create: if isAuthenticated() && isValidComplaint(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow read: if true;
+      allow create: if isValidComplaint(request.resource.data);
       allow update: if isAuthenticated() && isValidComplaint(request.resource.data) && (
         (request.auth.uid == resource.data.userId && request.resource.data.userId == resource.data.userId && request.resource.data.createdAt == resource.data.createdAt) ||
         isAdmin()

@@ -6,20 +6,21 @@ import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import ComplaintForm from './components/ComplaintForm';
 import AdminStudentUpload from './components/AdminStudentUpload';
-import { LayoutDashboard, FileEdit, LogOut, Menu, X, Users } from 'lucide-react';
+import Reports from './components/Reports';
+import { LayoutDashboard, FileEdit, LogOut, Menu, X, Users, FileText } from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<string>('user');
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'form' | 'admin'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'form' | 'reports' | 'admin'>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       const isMasterLogin = localStorage.getItem('master_login') === 'true';
       
-      if (isMasterLogin && currentUser && currentUser.isAnonymous) {
+      if (isMasterLogin && currentUser) {
         setUser(currentUser);
         setUserRole('admin');
         setLoading(false);
@@ -48,16 +49,21 @@ export default function App() {
       } else {
         setUser(null);
         setUserRole('user');
+        // If user is not logged in and on a restricted tab, move to dashboard
+        if (activeTab === 'reports' || activeTab === 'admin') {
+          setActiveTab('dashboard');
+        }
       }
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [activeTab]);
 
   const handleLogout = async () => {
     try {
       localStorage.removeItem('master_login');
       await signOut(auth);
+      setActiveTab('dashboard');
     } catch (error) {
       console.error("Error logging out:", error);
     }
@@ -71,9 +77,20 @@ export default function App() {
     );
   }
 
-  if (!user) {
-    return <Login onLogin={() => {}} />;
-  }
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return <Dashboard />;
+      case 'form':
+        return <ComplaintForm onSuccess={() => setActiveTab('dashboard')} />;
+      case 'reports':
+        return user ? <Reports isAdmin={userRole === 'admin'} /> : <Login onLogin={() => setActiveTab('reports')} />;
+      case 'admin':
+        return user && userRole === 'admin' ? <AdminStudentUpload /> : <Login onLogin={() => setActiveTab('admin')} />;
+      default:
+        return <Dashboard />;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col md:flex-row">
@@ -123,6 +140,18 @@ export default function App() {
             Buat Pengaduan
           </button>
 
+          <button
+            onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              activeTab === 'reports' 
+                ? 'bg-blue-50 text-blue-700 font-semibold shadow-sm border border-blue-100' 
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+            }`}
+          >
+            <FileText className={`w-5 h-5 ${activeTab === 'reports' ? 'text-blue-600' : 'text-gray-400'}`} />
+            Laporan Pengaduan
+          </button>
+
           {userRole === 'admin' && (
             <button
               onClick={() => { setActiveTab('admin'); setIsMobileMenuOpen(false); }}
@@ -139,18 +168,30 @@ export default function App() {
         </div>
 
         <div className="p-4 border-t border-gray-100">
-          <div className="px-4 py-3 mb-2">
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Login sebagai</p>
-            <p className="text-sm font-medium text-gray-800 truncate">{user.email}</p>
-            <p className="text-[10px] font-bold text-indigo-500 uppercase">{userRole}</p>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors font-medium"
-          >
-            <LogOut className="w-5 h-5" />
-            Keluar
-          </button>
+          {user ? (
+            <>
+              <div className="px-4 py-3 mb-2">
+                <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Login sebagai</p>
+                <p className="text-sm font-medium text-gray-800 truncate">{user.email || 'Admin Bypass'}</p>
+                <p className="text-[10px] font-bold text-indigo-500 uppercase">{userRole}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors font-medium"
+              >
+                <LogOut className="w-5 h-5" />
+                Keluar
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setActiveTab('reports')}
+              className="w-full flex items-center gap-3 px-4 py-3 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors font-medium"
+            >
+              <Users className="w-5 h-5" />
+              Login Admin
+            </button>
+          )}
         </div>
       </aside>
 
@@ -159,24 +200,23 @@ export default function App() {
         <div className="max-w-6xl mx-auto">
           <header className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-              {activeTab === 'dashboard' ? 'Dashboard Laporan' : activeTab === 'form' ? 'Formulir Pengaduan' : 'Manajemen Data Siswa'}
+              {activeTab === 'dashboard' ? 'Dashboard Laporan' : 
+               activeTab === 'form' ? 'Formulir Pengaduan' : 
+               activeTab === 'reports' ? 'Laporan Pengaduan' :
+               'Manajemen Data Siswa'}
             </h1>
             <p className="text-gray-500 mt-2">
               {activeTab === 'dashboard' 
-                ? 'Pantau status dan statistik pengaduan Anda di sini.' 
+                ? 'Pantau status dan statistik pengaduan di sini.' 
                 : activeTab === 'form'
                 ? 'Sampaikan keluhan atau masukan Anda kepada pihak sekolah.'
+                : activeTab === 'reports'
+                ? 'Lihat, edit, dan unduh data pengaduan secara lengkap.'
                 : 'Unggah data siswa dari file Excel untuk memudahkan pengisian formulir.'}
             </p>
           </header>
 
-          {activeTab === 'dashboard' ? (
-            <Dashboard />
-          ) : activeTab === 'form' ? (
-            <ComplaintForm onSuccess={() => setActiveTab('dashboard')} />
-          ) : (
-            <AdminStudentUpload />
-          )}
+          {renderContent()}
         </div>
       </main>
 

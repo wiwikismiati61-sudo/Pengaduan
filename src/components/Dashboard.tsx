@@ -11,14 +11,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-    
-    // For a real app, an admin might see all, but a user sees their own.
-    // Assuming this is a general dashboard for the user's complaints, or if admin, all.
-    // Let's just fetch the user's complaints for now, or all if we want to show a global dashboard.
-    // The prompt says "dashboard yang berisi laporan Jumlah Pengaduan...". 
-    // I'll fetch the user's complaints to respect the firestore rules (read: if isOwner).
-    const q = query(collection(db, 'complaints'), where('userId', '==', auth.currentUser.uid));
+    // Fetch all complaints for global stats
+    const q = query(collection(db, 'complaints'));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));

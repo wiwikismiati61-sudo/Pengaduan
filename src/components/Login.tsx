@@ -52,7 +52,23 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
     // Master Login Bypass for Admin
     if (email === 'wiwikismiati61@guru.smp.belajar.id' && password === 'Smpn7pas') {
       try {
-        await signInAnonymously(auth);
+        // Try to sign in with email/password first
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+        } catch (signInErr: any) {
+          // If user doesn't exist, create it
+          if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential') {
+            await createUserWithEmailAndPassword(auth, email, password);
+            await setDoc(doc(db, 'users', auth.currentUser!.uid), {
+              uid: auth.currentUser!.uid,
+              email: email,
+              role: 'admin',
+              createdAt: serverTimestamp()
+            });
+          } else {
+            throw signInErr;
+          }
+        }
         localStorage.setItem('master_login', 'true');
         onLogin();
         return;
