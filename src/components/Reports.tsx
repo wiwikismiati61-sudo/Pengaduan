@@ -68,6 +68,9 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin, userRole }) => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [viewingComplaint, setViewingComplaint] = useState<Complaint | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [complaintToDelete, setComplaintToDelete] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     const path = 'complaints';
@@ -98,7 +101,7 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin, userRole }) => {
     });
 
     return () => unsubscribe();
-  }, [isAdmin]);
+  }, [isAdmin, userRole]);
 
   const filteredComplaints = complaints.filter(c => {
     const matchesSearch = 
@@ -111,15 +114,28 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin, userRole }) => {
     return matchesSearch && matchesStatus;
   });
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus pengaduan ini?')) return;
+  const handleDelete = (id: string) => {
+    setComplaintToDelete(id);
+    setDeleteError(null);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!complaintToDelete) return;
     
-    setIsDeleting(id);
-    const path = `complaints/${id}`;
+    setIsDeleting(complaintToDelete);
+    setDeleteError(null);
+    const path = `complaints/${complaintToDelete}`;
     try {
-      await deleteDoc(doc(db, 'complaints', id));
+      console.log('Attempting to delete complaint:', complaintToDelete);
+      await deleteDoc(doc(db, 'complaints', complaintToDelete));
+      console.log('Successfully deleted complaint:', complaintToDelete);
+      setIsDeleteModalOpen(false);
+      setComplaintToDelete(null);
     } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, path);
+      console.error('Error deleting complaint:', err);
+      setDeleteError('Gagal menghapus data. Pastikan Anda memiliki izin.');
+      // handleFirestoreError(err, OperationType.DELETE, path); // Don't throw here so we can show the error in UI
     } finally {
       setIsDeleting(null);
     }
@@ -633,6 +649,52 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin, userRole }) => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Hapus Pengaduan?</h3>
+              <p className="text-gray-600 mb-6">
+                Apakah Anda yakin ingin menghapus data pengaduan ini? Tindakan ini tidak dapat dibatalkan.
+              </p>
+              {deleteError && (
+                <div className="mb-6 p-3 bg-red-50 border border-red-100 text-red-600 rounded-lg text-sm">
+                  {deleteError}
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setComplaintToDelete(null);
+                    setDeleteError(null);
+                  }}
+                  className="flex-1 px-6 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-semibold text-gray-700"
+                >
+                  Batal
+                </button>
+                <button 
+                  onClick={confirmDelete}
+                  disabled={isDeleting !== null}
+                  className="flex-1 px-6 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isDeleting ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Trash2 size={18} />
+                  )}
+                  Ya, Hapus
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
