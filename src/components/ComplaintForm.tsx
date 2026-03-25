@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, serverTimestamp, getDocs, query, orderBy } from 'firebase/firestore';
-import { db, auth, handleFirestoreError, OperationType } from '../firebase';
-import { Send, CheckCircle, AlertCircle, Search } from 'lucide-react';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { db, auth, storage, handleFirestoreError, OperationType } from '../firebase';
+import { Send, CheckCircle, AlertCircle, Search, Upload, Paperclip, Video, X } from 'lucide-react';
 
 const COMPLAINT_TYPES = [
   'Bullying/Perundungan',
@@ -26,6 +27,8 @@ export default function ComplaintForm({ onSuccess }: { onSuccess: () => void }) 
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<string[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [formData, setFormData] = useState({
     parentName: '',
@@ -42,6 +45,7 @@ export default function ComplaintForm({ onSuccess }: { onSuccess: () => void }) 
     incidentTime: '',
     incidentLocation: '',
     evidence: '',
+    evidenceVideoLink: '',
     expectation: '',
     declaration: false
   });
@@ -89,6 +93,48 @@ export default function ComplaintForm({ onSuccess }: { onSuccess: () => void }) 
     }));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'application/pdf', 'video/mp4'];
+      
+      if (!allowedTypes.includes(file.type)) {
+        setError('Tipe file tidak didukung. Gunakan JPG, PDF, atau MP4.');
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        setError('Ukuran file terlalu besar. Maksimal 10MB.');
+        return;
+      }
+
+      setSelectedFile(file);
+      setError('');
+    }
+  };
+
+  const uploadFile = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const storageRef = ref(storage, `evidence/${Date.now()}_${file.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
+        },
+        (error) => {
+          reject(error);
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(downloadURL);
+        }
+      );
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -107,6 +153,11 @@ export default function ComplaintForm({ onSuccess }: { onSuccess: () => void }) 
 
     const path = 'complaints';
     try {
+      let evidenceUrl = '';
+      if (selectedFile) {
+        evidenceUrl = await uploadFile(selectedFile);
+      }
+
       await addDoc(collection(db, path), {
         userId: auth.currentUser?.uid || 'guest',
         parentName: formData.parentName,
@@ -121,7 +172,8 @@ export default function ComplaintForm({ onSuccess }: { onSuccess: () => void }) 
         incidentDate: `${formData.incidentDay}, ${formData.incidentDate}`,
         incidentTime: formData.incidentTime,
         incidentLocation: formData.incidentLocation,
-        evidence: formData.evidence,
+        evidence: evidenceUrl,
+        evidenceVideoLink: formData.evidenceVideoLink,
         expectation: formData.expectation,
         declaration: formData.declaration,
         status: 'pending',
@@ -311,8 +363,54 @@ export default function ComplaintForm({ onSuccess }: { onSuccess: () => void }) 
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bukti Pendukung (Opsional)</label>
-              <input type="text" name="evidence" value={formData.evidence} onChange={handleChange} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all bg-gray-50 focus:bg-white" placeholder="Link Google Drive / Deskripsi bukti (video, chat, dll)" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Bukti Pendukung (Unggah File JPG, PDF, MP4)</label>
+              <div className="flex flex-col gap-3">
+                <div className="relative">
+                  <input 
+                    type="file" 
+                    id="evidence-file"
+                    onChange={handleFileChange} 
+                    className="hidden" 
+                    accept=".jpg,.jpeg,.pdf,.mp4"
+                  />
+                  <label 
+                    htmlFor="evidence-file"
+                    className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-pink-400 hover:bg-pink-50 transition-all text-gray-500"
+                  >
+                    <Upload className="w-5 h-5 text-pink-500" />
+                    <span className="text-sm">{selectedFile ? selectedFile.name : 'Klik untuk unggah file (Maks 10MB)'}</span>
+                  </label>
+                  {selectedFile && (
+                    <button 
+                      type="button"
+                      onClick={() => setSelectedFile(null)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-red-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                
+                {uploadProgress > 0 && uploadProgress < 100 && (
+                  <div className="w-full bg-gray-100 rounded-full h-1.5">
+                    <div className="bg-pink-500 h-1.5 rounded-full transition-all" style={{ width: `${uploadProgress}%` }}></div>
+                  </div>
+                )}
+
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Video className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input 
+                    type="url" 
+                    name="evidenceVideoLink" 
+                    value={formData.evidenceVideoLink} 
+                    onChange={handleChange} 
+                    className="w-full pl-10 px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all bg-gray-50 focus:bg-white" 
+                    placeholder="Atau tempel link video (YouTube/Drive/dll)" 
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="md:col-span-2">

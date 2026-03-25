@@ -20,7 +20,11 @@ import {
   CheckCircle, 
   Clock, 
   AlertCircle,
-  X
+  X,
+  ExternalLink,
+  Image as ImageIcon,
+  File as FileIcon,
+  Video as VideoIcon
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
@@ -42,6 +46,7 @@ interface Complaint {
   incidentTime: string;
   incidentLocation: string;
   evidence?: string;
+  evidenceVideoLink?: string;
   expectation: string;
   declaration: boolean;
   createdAt: any;
@@ -157,7 +162,9 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin, userRole }) => {
       'Tanggal Kejadian': c.incidentDate,
       'Lokasi': c.incidentLocation,
       'Harapan': c.expectation,
-      'Status': c.status === 'pending' ? 'Menunggu' : c.status === 'processed' ? 'Diproses' : 'Selesai'
+      'Status': c.status === 'pending' ? 'Menunggu' : c.status === 'processed' ? 'Diproses' : 'Selesai',
+      'Bukti File': c.evidence || '-',
+      'Link Video': c.evidenceVideoLink || '-'
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -409,7 +416,51 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin, userRole }) => {
                   </div>
                   <div className="md:col-span-2">
                     <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Bukti Pendukung</p>
-                    <p className="text-sm font-semibold text-gray-800">{viewingComplaint.evidence || '-'}</p>
+                    <div className="flex flex-col gap-3">
+                      {viewingComplaint.evidence ? (
+                        <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                          {viewingComplaint.evidence.toLowerCase().includes('.mp4') ? (
+                            <VideoIcon className="w-5 h-5 text-pink-500" />
+                          ) : viewingComplaint.evidence.toLowerCase().includes('.pdf') ? (
+                            <FileIcon className="w-5 h-5 text-blue-500" />
+                          ) : (
+                            <ImageIcon className="w-5 h-5 text-indigo-500" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-800 truncate">File Bukti Pendukung</p>
+                          </div>
+                          <a 
+                            href={viewingComplaint.evidence} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-white px-3 py-1.5 rounded-lg border border-indigo-100 shadow-sm transition-all"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            Lihat File
+                          </a>
+                        </div>
+                      ) : (
+                        <p className="text-sm font-semibold text-gray-400 italic">Tidak ada file bukti</p>
+                      )}
+
+                      {viewingComplaint.evidenceVideoLink && (
+                        <div className="flex items-center gap-3 bg-pink-50 p-3 rounded-xl border border-pink-100">
+                          <VideoIcon className="w-5 h-5 text-pink-500" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-pink-800 truncate">Link Video Pendukung</p>
+                          </div>
+                          <a 
+                            href={viewingComplaint.evidenceVideoLink} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs font-bold text-pink-600 hover:text-pink-700 bg-white px-3 py-1.5 rounded-lg border border-pink-100 shadow-sm transition-all"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            Buka Link
+                          </a>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="md:col-span-2">
                     <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">Harapan Orang Tua</p>
@@ -538,6 +589,16 @@ const Reports: React.FC<ReportsProps> = ({ isAdmin, userRole }) => {
                   value={editingComplaint.expectation}
                   onChange={(e) => setEditingComplaint({...editingComplaint, expectation: e.target.value})}
                 ></textarea>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Link Video Pendukung</label>
+                <input 
+                  type="url"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  value={editingComplaint.evidenceVideoLink || ''}
+                  onChange={(e) => setEditingComplaint({...editingComplaint, evidenceVideoLink: e.target.value})}
+                  placeholder="Link YouTube/Drive/dll"
+                />
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                 {(isAdmin || (!isAdmin && auth.currentUser && editingComplaint.userId === auth.currentUser.uid && editingComplaint.status === 'pending')) && (
